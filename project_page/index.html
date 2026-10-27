@@ -106,6 +106,7 @@ footer{color:var(--mut);font-size:.82rem;text-align:center;margin-top:60px}
     <a class="alt" href="https://github.com/y10ab1/manga2animate-exp/blob/main/docs/report.md">Experiment report</a>
     <a class="alt" href="https://github.com/y10ab1/manga2animate-exp/blob/main/results/summary.md">Raw scores</a>
     <a class="alt" href="https://github.com/y10ab1/manga2animate-exp">Code</a>
+    <a class="alt" href="https://github.com/y10ab1/manga2animate-exp/tree/main/skills/manga-to-animation">Claude skill</a>
   </div>
 </header>
 <main>
@@ -113,12 +114,14 @@ footer{color:var(--mut);font-size:.82rem;text-align:center;margin-top:60px}
 <section>
   <h2>TL;DR</h2>
   <p class="lead">We rebuilt MangaEval locally, re-scored every method the authors released on the 4 Manga109-s stories of their test set, and added two conditions of our own.
-  <b>B</b> runs their planning pipeline with Gemini Omni as the video model.
-  <b>C</b> gives the manga pages to one Opus 5.5 agent that plans, generates and reviews on its own, with the same image model and Omni.</p>
+  <b>B</b> reuses their released script and storyboard unchanged and renders the shots with Gemini Omni instead of Seedance.
+  <b>C</b> gives the manga pages and the 6 target panels to one Opus 5.5 agent that plans, generates and reviews on its own, with the same image model and Omni.</p>
   <div class="tldr" id="tldr"></div>
   <p class="note" style="margin-top:14px"><b>How far the claim goes.</b> C beats the paper's main setting (Gemini + Seedance 2.0) on manga alignment (I2VS, I2VB) and on all three temporal-consistency metrics, and ties it on Shadow-v2.
   Among the 10 methods in the table, C is first on I2VS, SC, BC and MS. It does <i>not</i> win on Waifu-v3 or DD (less motion; see below).
-  These are 4 stories with 1 run each, and gaps under ≈0.02 in I2VS/I2VB are within segmentation noise.</p>
+  These are 4 stories with 1 run each, and gaps under ≈0.02 in I2VS/I2VB are within segmentation noise.
+  C was given the 6 target panels in order, so this covers the panels-to-video stage, not the full pipeline.
+  Re-scored with held-out character references that no method saw, C stays first on I2VS (0.771 vs 0.725 for the paper's main setting).</p>
 </section>
 
 <section>
@@ -160,8 +163,8 @@ footer{color:var(--mut);font-size:.82rem;text-align:center;margin-top:60px}
     <h4>C: Opus director <span>· 0 extra VLM calls · ≈9 image + ≈9 clip calls per story · retries only when needed</span></h4>
     <div class="flow">
       <div class="stage"><div class="t">Inputs</div>
-        <div class="box given">6 target panels, in order (same crops for every method)</div>
-        <div class="box given">manga pages + B/W character crops</div>
+        <div class="box given">6 target panels, cropped in the order of their released script (also used for scoring)</div>
+        <div class="box given">manga pages + B/W character crops (also used for scoring; see held-out check)</div>
         <div class="box drop">OCR</div></div>
       <div class="arrow">→</div>
       <div class="stage"><div class="t">Read &amp; plan (one pass)</div>
@@ -239,14 +242,32 @@ footer{color:var(--mut);font-size:.82rem;text-align:center;margin-top:60px}
 </section>
 
 <section>
+  <h2>Held-out check: did C win because it saw the scoring references?</h2>
+  <p class="lead">C was conditioned on the same character crops that I2VS compares against. To test whether that inflated its score, we cropped 3 new references per character from other Manga109-s spreads of the same chapter (largest annotated character boxes, never shown to any method), screened them visually before scoring, and re-scored I2VS with nothing else changed. No new generation was needed.</p>
+  <div class="tw"><table>
+    <tr><th>Method</th><th>I2VS, input refs</th><th>I2VS, held-out refs</th><th>Change</th><th>Rank (held-out)</th></tr>
+    <tr><td>M2A (Gemini) + Seedance 2.0 — paper's main</td><td>0.753</td><td>0.725</td><td>−0.028</td><td>7</td></tr>
+    <tr><td>M2A (Gemini) + MiniMax-H3</td><td>0.790</td><td>0.754</td><td>−0.036</td><td>3</td></tr>
+    <tr><td>B: M2A plan + Omni</td><td>0.774</td><td>0.740</td><td>−0.034</td><td>5</td></tr>
+    <tr><td><b>C: Opus director + Omni</b></td><td><b>0.801</b></td><td><b>0.771</b></td><td>−0.030</td><td><b>1</b></td></tr>
+    <tr><td>C … exact cuts</td><td>0.782</td><td>0.754</td><td>−0.028</td><td>2</td></tr>
+  </table></div>
+  <p class="note">Every method drops by about 0.03 (different poses; dualjustice1 also moves from the authors' colour reference to B/W crops), and C does not drop more than the others, so seeing the references did not noticeably inflate its score.
+  I2VS is 40% reference similarity and 60% frame-to-frame consistency. On reference similarity alone (held-out), C is second (0.460) behind ViMax + Veo 3.1 Fast (0.471), so part of C's I2VS lead comes from temporal stability.
+  Full table: <a href="https://github.com/y10ab1/manga2animate-exp/blob/main/results/i2vs_heldout.md">results/i2vs_heldout.md</a>.</p>
+</section>
+
+<section>
   <h2>Setup and caveats</h2>
   <ul class="tight">
     <li><b>Stories:</b> dualjustice1, dualjustice2, kick, lovehina. These are the 4 of their 8 test stories that come from Manga109-s; the source pages are taken from our local Manga109-s copy.</li>
-    <li><b>Same inputs for B and C:</b> the 6 panels are cropped in the order of their released script, and C receives them already ordered. Panel detection and reading order are therefore given to C rather than solved by it, which is the MAGI step of their pipeline.</li>
+    <li><b>B and C do not share inputs.</b> B reuses the authors' released script and storyboard unchanged (byte-identical) and only swaps the video model; it never sees our panel crops or character references. C receives our 6 panel crops and character crops, which are also what MangaEval scores against. M2A and the other released baselines were generated from the authors' own crops and references and are scored against ours.</li>
+    <li><b>Panels are given to C, so C is not end-to-end.</b> The 6 panels were cropped in the order of the authors' final script, so which panels to use and in what order is borrowed from their pipeline (the MAGI + reviewer step). C's result covers the stage from given panels to video.</li>
+    <li><b>Reference leakage:</b> C conditioned keyframes on the same character crops I2VS compares against (in kick, one reference is the exact crop of panel 3). The held-out check above re-scores I2VS with references no method saw; dualjustice1 uses the authors' own panels and references and has no leakage at all.</li>
     <li><b>Video model differs from the paper's main setting</b> (Omni vs Seedance 2.0). B isolates the planner effect with the video model held fixed.</li>
     <li><b>Format:</b> C videos are 17.5–19.5 s (6 shots of 2.5–4 s), against 15 s for Seedance. Segment metrics are computed per shot.</li>
     <li>I2VS uses the Hugging Face port of DINOv3 ViT-B/16 because the official checkpoint is gated. Two install-level patches are listed in the report.</li>
-    <li><b>Not done yet:</b> repeated runs (variance), storyboard metrics (CSD/CIDS/PA/OCCM), the remaining 4 stories, and a user study.</li>
+    <li><b>Not done yet:</b> repeated runs (variance), an end-to-end C that picks and orders panels itself, re-running their full pipeline on our inputs, storyboard metrics (CSD/CIDS/PA/OCCM), the remaining 4 stories (not from Manga109), and a user study.</li>
   </ul>
 </section>
 
@@ -273,7 +294,7 @@ const S = D.summary;
 
 // TL;DR
 const tl = [
-  ["I2VS (character match)", S[C]["I2VS"].toFixed(3), "vs "+S[M]["I2VS"].toFixed(3)+" paper main", "c"],
+  ["I2VS (character match)", S[C]["I2VS"].toFixed(3), "vs "+S[M]["I2VS"].toFixed(3)+" paper main · held-out refs 0.771 vs 0.725", "c"],
   ["I2VB (panel background)", S[C]["I2VB"].toFixed(3), "vs "+S[M]["I2VB"].toFixed(3)+" paper main", "c"],
   ["Shadow-v2, same video model", S[C]["Shadow-v2"].toFixed(3), "vs "+S[B]["Shadow-v2"].toFixed(3)+" for B", "c"],
   ["Cost / time per story", "$6.0", "≈9 min · paper $5.65, 25 min", ""],
