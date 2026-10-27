@@ -11,6 +11,7 @@ benchmark, plus an alternative where a single Claude Opus 5.5 agent directs the 
 - `scripts/eval_all.py`: scoring driver (auto_clip / exact cuts → VBench++ I2VB, SC, BC, MS → DD → DINOv3 I2VS → aesthetic scorers)
 - `tools/m2a_tools.py`: logged image, clip, frame and assemble tools used by the director
 - `patches/`: Omni backend for the Manga2Animate pipeline (condition B)
+- `skills/manga-to-animation/`: Claude skill that runs the whole adaptation as one director agent
 - `project_page/`: the GitHub Pages site (`scripts/build_page.py` regenerates `static/`)
 
 Not included: the Manga109-s data, the per-case inputs built from it, and the raw run directories.
