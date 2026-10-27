@@ -43,7 +43,7 @@ for r in rows:
     ref = embed([Image.open(r["character_ref"]).convert("RGB")])
     conf = (ff @ ref.T).clamp(min=0).squeeze(1).numpy()
     s = 0.4 * conf.max() + 0.3 * cons.mean() + 0.3 * cons.min()
-    res.append({**r, "score": float(s), "status": "SUCCESS"})
+    res.append({**r, "score": float(s), "ref_max": float(conf.max()), "status": "SUCCESS"})
     print(r["method"], r["case"], r["segment"], r.get("character"), round(float(s), 4), flush=True)
 with open(sys.argv[2], "w", newline="") as f:
     w = csv.DictWriter(f, fieldnames=sorted({k for x in res for k in x}))

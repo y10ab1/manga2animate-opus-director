@@ -75,6 +75,32 @@ of each auto-cut segment): `results/sheets/<case>.jpg`.
   2, and on dualjustice1 it misaligned M2A and B the same way (see sheets). Exact vs. auto cuts change C's
   I2VS by 0.02, which is the same size as the gaps between the top rows. **Differences below about 0.02 in
   I2VS/I2VB should not be trusted.**
+- **Input asymmetries (disclosed).** (a) C was given `data/cases/<case>/characters/*.png` as generation
+  input, and the main I2VS scores against those same files; on dualjustice2/kick/lovehina these are our
+  crops, which M2A and B never saw (B reuses their released script and storyboard unchanged and only
+  swaps the video model). On kick, girl1's ref is the same crop as panel 3. (b) C was given the 6 panels
+  already selected and ordered (we cut them following their final script), so C is a
+  "given panels -> video" result, not end to end.
+- **Held-out-ref check for (a)** (`results/i2vs_heldout.md`, `scripts/build_heldout_refs.py`,
+  `scripts/eval_heldout.py`). Every character got 3 new refs from other Manga109-s spreads of the same
+  chapter (largest `body` annotations, input spreads excluded; 6 crops where the character was not clearly
+  visible were swapped out on the sheet `results/heldout_refs.jpg` before any scoring). No method saw them.
+  Same segments, formula and aggregation; score = mean over the 3 refs.
+
+  | Method | I2VS input refs | I2VS held-out | drop | RefSim held-out |
+  |---|---|---|---|---|
+  | M2A(Gemini)+Seedance2 | 0.753 | 0.725 | −0.028 | 0.429 |
+  | M2A(Gemini)+MiniMax-H3 | 0.790 | 0.754 | −0.036 | 0.452 |
+  | B: M2A plan + Omni | 0.774 | 0.740 | −0.034 | 0.426 |
+  | C: Opus director + Omni | **0.801** | **0.771** | −0.030 | 0.460 |
+  | C [exact cuts] | 0.782 | 0.754 | −0.028 | 0.444 |
+
+  RefSim = the ref term alone (max over frames of DINOv3 similarity; it is 40% of I2VS, the rest ignores
+  the ref). Every method drops by about the same amount (held-out refs are different poses, and for
+  dualjustice1 B/W instead of the colour art), and C does not drop more than the others, so the leak did not
+  measurably inflate C. C stays #1 on held-out I2VS (auto cuts) and ties MiniMax-H3 with exact cuts; on
+  RefSim alone it is #2 behind ViMax+Veo3.1Fast (0.471). Caveat: C's kick score benefits from auto_clip's
+  mis-cut (RefSim 0.512 auto vs. 0.436 exact). Asymmetry (b) is not addressed by this check.
 
 ## Limitations
 - n = 4 stories, 1 run per method, and no variance estimate. Generation is stochastic.
