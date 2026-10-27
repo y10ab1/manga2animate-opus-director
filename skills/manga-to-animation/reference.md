@@ -3,8 +3,8 @@
 ## Where this workflow comes from
 An experiment on the 4 Manga109-s stories of the Manga2Animate test set (dualjustice1, dualjustice2, kick,
 lovehina), with every method scored by the same local MangaEval setup.
-Report: https://github.com/y10ab1/manga2animate-exp/blob/main/docs/report.md
-Project page: https://y10ab1.github.io/manga2animate-exp/
+Report: https://github.com/y10ab1/manga2animate-opus-director/blob/main/docs/report.md
+Project page: https://y10ab1.github.io/manga2animate-opus-director/
 
 | method | I2VS | I2VB | SC | BC | MS | DD | Shadow-v2 | Waifu-v3 |
 |---|---|---|---|---|---|---|---|---|

@@ -1,9 +1,9 @@
-# manga2animate-exp
+# manga2animate-opus-director
 
 Re-evaluation of [Manga2Animate](https://annchenn.github.io/Manga2Animate/) (arXiv 2610.26851) on its MangaEval
 benchmark, plus an alternative where a single Claude Opus 5.5 agent directs the whole adaptation.
 
-**Project page:** https://y10ab1.github.io/manga2animate-exp/
+**Project page:** https://y10ab1.github.io/manga2animate-opus-director/
 
 - `docs/report.md`: setup, results, validity checks and limitations
 - `docs/director_brief.md`: the brief given to the Opus director (condition C)
