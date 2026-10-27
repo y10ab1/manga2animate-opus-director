@@ -1,0 +1,20 @@
+Paper Table 1 (8 stories, their panels/refs) vs. our re-scoring (4 Manga109-s stories, our panels/refs)
+metric     Spearman rho over 8 methods   mean |diff|
+I2VS       +0.76                          0.022
+I2VB       +0.67                          0.021
+SC         +0.62                          0.018
+BC         +0.19                          0.009
+MS         +0.79                          0.005
+DD         +0.79                          2.138
+Shadow-v2  +0.93                          0.081
+Waifu-v3   +0.81                          0.374
+
+per method (paper -> ours)
+AniMaker                 I2VS 0.775->0.742  I2VB 0.749->0.728  DD 7.680->1.409  Shadow-v2 0.410->0.345
+ViMax+Veo3.1Fast         I2VS 0.774->0.751  I2VB 0.752->0.784  DD 1.639->1.482  Shadow-v2 0.368->0.183
+ViMax+Seedance2          I2VS 0.753->0.738  I2VB 0.747->0.778  DD 2.541->1.307  Shadow-v2 0.385->0.218
+StoryMem                 I2VS 0.728->0.743  I2VB 0.731->0.766  DD 5.203->3.364  Shadow-v2 0.275->0.308
+Direct+Seedance2         I2VS 0.750->0.733  I2VB 0.711->0.724  DD 13.941->12.320  Shadow-v2 0.492->0.398
+M2A(FLUX.2)+Seedance2    I2VS 0.781->0.748  I2VB 0.741->0.727  DD 9.377->10.911  Shadow-v2 0.595->0.626
+M2A(Gemini)+MiniMax-H3   I2VS 0.792->0.790  I2VB 0.791->0.792  DD 3.715->2.378  Shadow-v2 0.413->0.363
+M2A(Gemini)+Seedance2    I2VS 0.791->0.753  I2VB 0.768->0.749  DD 9.457->6.343  Shadow-v2 0.518->0.495

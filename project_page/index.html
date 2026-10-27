@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One Agent, Fewer Steps: Re-evaluating Manga2Animate with an Opus Director</title>
+<style>
+:root{--fg:#1d1d1f;--mut:#6e6e73;--bg:#fff;--soft:#f5f5f7;--line:#e2e2e6;--c:#6d28d9;--c2:#ede9fe;--b:#0e7490;--m:#b45309;--ok:#15803d;--okbg:#dcfce7;--drop:#9ca3af;--add:#15803d}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans","Noto Sans CJK TC",Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}
+main{max-width:1080px;margin:0 auto;padding:0 20px 80px}
+header{text-align:center;padding:56px 20px 24px}
+h1{font-size:2.2rem;line-height:1.2;margin:0 0 12px;letter-spacing:-.01em}
+h1 small{display:block;font-size:1.1rem;font-weight:500;color:var(--mut);margin-top:10px}
+.links{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+.links a{background:#1d1d1f;color:#fff;text-decoration:none;padding:7px 16px;border-radius:999px;font-size:.92rem}
+.links a.alt{background:var(--soft);color:var(--fg)}
+h2{font-size:1.55rem;margin:64px 0 8px;letter-spacing:-.01em}
+h3{font-size:1.1rem;margin:28px 0 8px}
+p.lead{color:var(--mut);margin-top:0}
+.tldr{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:20px}
+.card{background:var(--soft);border-radius:14px;padding:18px}
+.card .k{font-size:.82rem;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.card .v{font-size:1.9rem;font-weight:700;margin:4px 0}
+.card .v span{font-size:1rem;font-weight:500;color:var(--mut)}
+.card.c{background:var(--c2)}
+.card.warn{background:#fff7ed}
+.note{background:var(--soft);border-radius:12px;padding:14px 18px;font-size:.93rem;color:#3a3a3c}
+/* diagram */
+.lane{border-radius:16px;padding:18px 18px 14px;margin:14px 0;background:var(--soft)}
+.lane.ours{background:#f7f3ff}
+.lane h4{margin:0 0 12px;font-size:1rem}
+.lane h4 span{font-weight:400;color:var(--mut);font-size:.88rem}
+.flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap}
+.stage{background:#fff;border-radius:12px;padding:10px;flex:1 1 150px;min-width:150px;display:flex;flex-direction:column;gap:6px}
+.stage .t{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.box{border-radius:8px;padding:6px 8px;font-size:.84rem;line-height:1.35;background:#eef0f3}
+.box b{font-weight:600}
+.box.drop{background:#fff;border:1.5px dashed var(--drop);color:var(--drop);text-decoration:line-through}
+.box.merge{background:var(--c2);color:#4c1d95}
+.box.add{background:var(--okbg);color:#14532d}
+.box.given{background:#e0f2fe;color:#0c4a6e}
+.box.gen{background:#fef3c7;color:#78350f}
+.arrow{align-self:center;color:var(--mut);font-size:1.2rem}
+.loop{font-size:.78rem;color:var(--mut);margin-top:4px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;color:var(--mut);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18);vertical-align:-1px;margin-right:5px}
+/* tables */
+.tw{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:#3a3a3c;background:#fafafa}
+tr.cRow td{background:#f7f3ff;font-weight:600}
+tr.bRow td{background:#f0fbfd}
+tr.mRow td{background:#fffaf0}
+td.best{color:#b91c1c;font-weight:700}
+td.second{color:#c2410c}
+td.wrap,th.wrap{white-space:normal;text-align:left}
+.map td{vertical-align:top}
+.tag{display:inline-block;border-radius:6px;padding:1px 7px;font-size:.76rem;font-weight:600}
+.tag.drop{background:#f3f4f6;color:#6b7280}.tag.merge{background:var(--c2);color:#5b21b6}.tag.add{background:var(--okbg);color:#166534}.tag.given{background:#e0f2fe;color:#075985}
+.ctrl{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:.88rem;color:var(--mut)}
+/* charts */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:18px;margin-top:14px}
+.chart{background:var(--soft);border-radius:14px;padding:14px 16px}
+.chart h5{margin:0 0 6px;font-size:.95rem}
+.chart svg{width:100%;height:auto;display:block}
+/* cases */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.tabs button{border:0;background:var(--soft);padding:7px 14px;border-radius:999px;cursor:pointer;font:inherit;font-size:.9rem}
+.tabs button[aria-pressed=true]{background:#1d1d1f;color:#fff}
+.pages{display:flex;gap:8px;overflow-x:auto}
+.pages img{height:300px;border-radius:6px;background:#fff;box-shadow:0 0 0 1px var(--line)}
+.strip{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0}
+.strip figure{margin:0;background:#fff;box-shadow:0 0 0 1px var(--line);border-radius:6px;height:120px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.strip img{max-width:100%;max-height:100%}
+.strip figcaption{position:absolute;left:4px;top:2px;font-size:.7rem;background:#fff;padding:0 4px;border-radius:4px}
+.vids{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.vids figure{margin:0}
+.vids video{width:100%;border-radius:10px;background:#000;display:block;aspect-ratio:16/9}
+.vids figcaption{font-size:.86rem;margin-top:4px}
+.vids figcaption .s{color:var(--mut)}
+.play{border:0;background:#1d1d1f;color:#fff;padding:7px 16px;border-radius:999px;cursor:pointer;font:inherit;font-size:.9rem}
+/* review */
+.rev{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px auto 4px;max-width:860px}
+.rev.sheet{grid-template-columns:1fr}
+.cap{max-width:860px;margin-left:auto;margin-right:auto}
+.rev figure{margin:0;position:relative}
+.rev img{width:100%;border-radius:8px;display:block}
+.rev .lab{position:absolute;left:8px;top:8px;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff}
+.rev .lab.r{background:#b91c1c}.rev .lab.a{background:#15803d}
+.cap{font-size:.88rem;color:#3a3a3c;margin-bottom:22px}
+pre{background:var(--soft);border-radius:10px;padding:12px;overflow-x:auto;font-size:.8rem}
+ul.tight li{margin:3px 0}
+footer{color:var(--mut);font-size:.82rem;text-align:center;margin-top:60px}
+@media (max-width:700px){.charts{grid-template-columns:1fr}h1{font-size:1.6rem}.vids{grid-template-columns:1fr}.strip{grid-template-columns:repeat(3,1fr)}.pages img{height:200px}.arrow{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>One Agent, Fewer Steps<small>Re-evaluating <a href="https://annchenn.github.io/Manga2Animate/">Manga2Animate</a> on MangaEval with a single Claude Opus 5.5 director</small></h1>
+  <div class="links">
+    <a href="https://arxiv.org/abs/2610.26851">Original paper</a>
+    <a class="alt" href="https://annchenn.github.io/Manga2Animate/">Original project page</a>
+    <a class="alt" href="https://github.com/y10ab1/manga2animate-exp/blob/main/docs/report.md">Experiment report</a>
+    <a class="alt" href="https://github.com/y10ab1/manga2animate-exp/blob/main/results/summary.md">Raw scores</a>
+    <a class="alt" href="https://github.com/y10ab1/manga2animate-exp">Code</a>
+  </div>
+</header>
+<main>
+
+<section>
+  <h2>TL;DR</h2>
+  <p class="lead">We rebuilt MangaEval locally, re-scored every method the authors released on the 4 Manga109-s stories of their test set, and added two conditions of our own.
+  <b>B</b> runs their planning pipeline with Gemini Omni as the video model.
+  <b>C</b> gives the manga pages to one Opus 5.5 agent that plans, generates and reviews on its own, with the same image model and Omni.</p>
+  <div class="tldr" id="tldr"></div>
+  <p class="note" style="margin-top:14px"><b>How far the claim goes.</b> C beats the paper's main setting (Gemini + Seedance 2.0) on manga alignment (I2VS, I2VB) and on all three temporal-consistency metrics, and ties it on Shadow-v2.
+  Among the 10 methods in the table, C is first on I2VS, SC, BC and MS. It does <i>not</i> win on Waifu-v3 or DD (less motion; see below).
+  These are 4 stories with 1 run each, and gaps under ≈0.02 in I2VS/I2VB are within segmentation noise.</p>
+</section>
+
+<section>
+  <h2>Pipelines side by side</h2>
+  <p class="lead">What Opus kept, merged, dropped or added compared with the Manga2Animate pipeline (Fig. 3 of the paper).</p>
+  <div class="legend">
+    <span><i style="background:#eef0f3"></i>fixed step / model call</span>
+    <span><i style="background:#e0f2fe"></i>given as input</span>
+    <span><i style="background:var(--c2)"></i>done by Opus itself (no extra API calls)</span>
+    <span><i style="background:var(--okbg)"></i>new step added by Opus</span>
+    <span><i style="background:#fff;border:1.5px dashed var(--drop)"></i>not needed</span>
+  </div>
+
+  <div class="lane">
+    <h4>Manga2Animate <span>· 29.5 VLM + 6 image + 2 video calls per story · fixed schedule</span></h4>
+    <div class="flow">
+      <div class="stage"><div class="t">Pre-processing</div>
+        <div class="box"><b>MAGI</b> panel detection + reading order</div>
+        <div class="box"><b>MAGI OCR</b> → transcript</div>
+        <div class="box"><b>Character Description Creator</b></div></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">Script ×2 rounds</div>
+        <div class="box"><b>Script Creator</b> × 3 candidates</div>
+        <div class="box"><b>Script Reviewer</b>: clip-wise recombination</div>
+        <div class="loop">↻ dual-level feedback to the next round</div></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">Storyboard ×2 rounds</div>
+        <div class="box"><b>Storyboard Creator</b> × 3 (one 3×2 grid each)</div>
+        <div class="box"><b>Storyboard Reviewer</b>: pairwise</div>
+        <div class="loop">↻ feedback goes back to the script</div></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">Video</div>
+        <div class="box gen"><b>Seedance 2.0</b> × 2, whole storyboard as reference, 15 s</div>
+        <div class="box"><b>Video Reviewer</b> picks 1</div></div>
+    </div>
+  </div>
+
+  <div class="lane ours">
+    <h4>C: Opus director <span>· 0 extra VLM calls · ≈9 image + ≈9 clip calls per story · retries only when needed</span></h4>
+    <div class="flow">
+      <div class="stage"><div class="t">Inputs</div>
+        <div class="box given">6 target panels, in order (same crops for every method)</div>
+        <div class="box given">manga pages + B/W character crops</div>
+        <div class="box drop">OCR</div></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">Read &amp; plan (one pass)</div>
+        <div class="box merge">reads the Japanese pages directly and translates the dialogue</div>
+        <div class="box merge">writes one 6-shot script (action · dialogue · camera)</div>
+        <div class="box merge">fixes a colour design for each character and object</div>
+        <div class="box add">colour model sheet image when useful (lovehina)</div></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">Keyframes, per shot</div>
+        <div class="box gen"><b>Gemini image</b>: refs = panel <i>i</i> + characters</div>
+        <div class="box add">reference chaining: accepted keyframes become refs for later shots</div>
+        <div class="box add">reference cleaning: crops away or whites out SFX lettering</div>
+        <div class="box merge">looks at each keyframe; retries with a targeted fix</div></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">Clips, per shot</div>
+        <div class="box gen"><b>Omni</b> first-frame, 5 s</div>
+        <div class="box merge">checks a 4 fps frame sheet; retries on drift</div>
+        <div class="box add">anti-drift prompts ("camera locked", "does not land")</div>
+        <div class="box add">temporal trim: keeps the best 2.5–4 s window</div></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">Output</div>
+        <div class="box">assemble 6 hard cuts</div>
+        <div class="box merge">final contact-sheet check: no text, stable identities</div></div>
+    </div>
+  </div>
+
+  <h3>Step-by-step mapping</h3>
+  <div class="tw"><table class="map" id="maptab"></table></div>
+</section>
+
+<section>
+  <h2>Main results (MangaEval video metrics)</h2>
+  <p class="lead">Mean over 4 stories. Every row is scored by our own MangaEval setup against the same panels and character references, so rows are comparable with each other but not one-to-one with the paper's Table 1.
+  <span style="color:#b91c1c;font-weight:700">Red</span> = best and <span style="color:#c2410c">orange</span> = second best per column.</p>
+  <div class="ctrl"><label><input type="checkbox" id="showExact"> show exact-cut rows for B and C (true shot boundaries instead of auto_clip)</label></div>
+  <div class="tw"><table id="maintab"></table></div>
+  <div class="charts" id="charts"></div>
+  <p class="note" style="margin-top:14px"><b>Same video model, different planner.</b> B and C both render with Omni. C raises Shadow-v2 from 0.266 to 0.488 and Waifu-v3 from 4.36 to 4.58, has higher I2VS (0.801 vs 0.774), and is more temporally stable. B has slightly higher I2VB.
+  <b>Why DD is low:</b> to stop Omni drifting away from the panel, Opus asked for locked cameras and held poses. DD measures motion magnitude, not correctness. The paper notes the same trade-off for its MiniMax rows.</p>
+</section>
+
+<section>
+  <h2>Per-story comparison</h2>
+  <div class="tabs" id="tabs"></div>
+  <h3>Source manga pages <span id="credit" style="font-weight:400;color:var(--mut);font-size:.88rem"></span></h3>
+  <div class="pages" id="pages"></div>
+  <h3>Target panels (shot <i>i</i> must show panel <i>i</i>)</h3>
+  <div class="strip" id="strip"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 8px">
+    <h3 style="margin:0">Videos</h3><button class="play" id="playall">▶ Play all in sync</button></div>
+  <div class="vids" id="vids"></div>
+  <div class="tw"><table id="casetab"></table></div>
+</section>
+
+<section>
+  <h2>What self-review looked like</h2>
+  <p class="lead">Instead of a fixed number of candidates, Opus generated one, looked at it, and retried only when it broke the panel.
+  Over the 4 stories that was <span id="retries"></span>.</p>
+  <div id="review"></div>
+</section>
+
+<section>
+  <h2>Cost</h2>
+  <p class="lead">List prices: Omni 720p at $0.10/s, Gemini 3.1 Flash Image at 1K at $0.067 per image. Opus token cost is from the agent's session records.</p>
+  <div class="tw"><table id="costtab"></table></div>
+  <p class="note">Each Omni clip is 5 s, but only 2.5–4 s of it is used. Requesting shorter clips would cut about 30–40% of the video cost.</p>
+</section>
+
+<section>
+  <h2>Is our MangaEval setup faithful?</h2>
+  <p class="lead">We re-scored the 8 methods the authors released and compared our ranking with the paper's Table 1 (8 stories, their references) using Spearman ρ.</p>
+  <div class="tw"><table id="checktab"></table></div>
+  <p class="note">The ranking agrees well on all metrics except BC, where every method falls within 0.93–0.96. Absolute I2VS is mostly lower than in the paper, by up to 0.04, which fits our use of different character references (theirs are not released).
+  auto_clip sometimes misses a cut (for example C/kick): exact vs. auto cuts move C's I2VS by 0.02.</p>
+</section>
+
+<section>
+  <h2>Setup and caveats</h2>
+  <ul class="tight">
+    <li><b>Stories:</b> dualjustice1, dualjustice2, kick, lovehina. These are the 4 of their 8 test stories that come from Manga109-s; the source pages are taken from our local Manga109-s copy.</li>
+    <li><b>Same inputs for B and C:</b> the 6 panels are cropped in the order of their released script, and C receives them already ordered. Panel detection and reading order are therefore given to C rather than solved by it, which is the MAGI step of their pipeline.</li>
+    <li><b>Video model differs from the paper's main setting</b> (Omni vs Seedance 2.0). B isolates the planner effect with the video model held fixed.</li>
+    <li><b>Format:</b> C videos are 17.5–19.5 s (6 shots of 2.5–4 s), against 15 s for Seedance. Segment metrics are computed per shot.</li>
+    <li>I2VS uses the Hugging Face port of DINOv3 ViT-B/16 because the official checkpoint is gated. Two install-level patches are listed in the report.</li>
+    <li><b>Not done yet:</b> repeated runs (variance), storyboard metrics (CSD/CIDS/PA/OCCM), the remaining 4 stories, and a user study.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Credits and license</h2>
+  <p class="note">Manga images on this page are cited from the <b>Manga109-s</b> dataset (Matsui et al., 2017; Aizawa et al., 2020) and are shown only to present research results:
+  <b>DualJustice © Yusuke Takeyama</b> (stories dualjustice1, dualjustice2, kick) and <b>LoveHina vol. 01 © Ken Akamatsu</b> (story lovehina).
+  All generated keyframes and videos are derived from these works. The baseline and Manga2Animate videos are the outputs released by the
+  <a href="https://annchenn.github.io/Manga2Animate/">Manga2Animate</a> authors (Zhang, Chen, Liou et al., 2026).
+  The dataset itself is not redistributed here; obtain it from <a href="http://www.manga109.org/">manga109.org</a>.</p>
+</section>
+<footer>Built from <code>results/</code> by <code>scripts/build_page.py</code> · 2026-10-27</footer>
+</main>
+
+<script src="static/data.js"></script>
+<script>
+const D = window.DATA;
+const COLS = ["I2VS","I2VB","SC","BC","MS","DD","Shadow-v2","Waifu-v3"];
+const C = "C:Opus-director+Omni", B = "B:M2A-plan+Omni", M = "M2A(Gemini)+Seedance2";
+const NICE = {[C]:"C: Opus director + Omni (ours)", [B]:"B: M2A plan + Omni (ours)", [C+" [exact cuts]"]:"C … exact cuts", [B+" [exact cuts]"]:"B … exact cuts", [M]:"M2A (Gemini) + Seedance 2.0 — paper's main"};
+const nice = m => NICE[m] || m;
+const f = (v,c) => isNaN(v) ? "–" : (c==="DD"||c==="Waifu-v3") ? v.toFixed(2) : v.toFixed(3);
+const S = D.summary;
+
+// TL;DR
+const tl = [
+  ["I2VS (character match)", S[C]["I2VS"].toFixed(3), "vs "+S[M]["I2VS"].toFixed(3)+" paper main", "c"],
+  ["I2VB (panel background)", S[C]["I2VB"].toFixed(3), "vs "+S[M]["I2VB"].toFixed(3)+" paper main", "c"],
+  ["Shadow-v2, same video model", S[C]["Shadow-v2"].toFixed(3), "vs "+S[B]["Shadow-v2"].toFixed(3)+" for B", "c"],
+  ["Cost / time per story", "$6.0", "≈9 min · paper $5.65, 25 min", ""],
+];
+document.getElementById("tldr").innerHTML = tl.map(([k,v,s,c]) => `<div class="card ${c}"><div class="k">${k}</div><div class="v">${v}</div><div style="color:var(--mut);font-size:.88rem">${s}</div></div>`).join("");
+
+// mapping table
+const MAP = [
+  ["MAGI panel detection + reading order","1 local model run","given","The same 6 ordered panel crops are given to B and C. C does not solve this step."],
+  ["MAGI OCR → transcript","1 local model run","drop","Opus reads the Japanese pages itself and writes JP→EN dialogue into its script."],
+  ["Character Description Creator","≈1 VLM call","merge","Opus writes a colour and design spec for each character and object. For lovehina it also made a colour model sheet (1 image call)."],
+  ["Script Creator × 3 + clip-wise Script Reviewer, 2 rounds","≈12 VLM calls","merge","Replaced by a single script pass. Opus reads each panel closely instead of voting across candidates."],
+  ["Storyboard Creator × 3 grids + pairwise Reviewer, 2 rounds","6 image + ≈8 VLM calls","merge","Replaced by one keyframe per shot, conditioned on panel <i>i</i> and the characters, regenerated only when it fails review."],
+  ["Dual-level feedback (storyboard issues → script)","in VLM calls","merge","Fixes go straight into the retry prompt for the shot that failed."],
+  ["Seedance × 2 + Video Reviewer","2 video + 1 VLM call","merge","Omni first-frame per shot. Opus checks a 4 fps frame sheet and retries only shots that drift."],
+  ["—","","add","<b>Reference chaining</b>: accepted keyframes are passed as references to later shots to lock object and character designs (kick, dualjustice1)."],
+  ["—","","add","<b>Reference cleaning</b>: crops away or whites out SFX lettering in panel references so it is not copied (dualjustice2)."],
+  ["—","","add","<b>Temporal trimming</b>: keeps the best 2.5–4 s of each 5 s clip, cutting before the model drifts."],
+  ["—","","add","<b>Anti-drift prompting</b>: locked camera, held pose, \u201cdoes not land\u201d, everything kept in frame."],
+];
+const TAG = {given:"given",drop:"not needed",merge:"Opus, in-context",add:"added"};
+document.getElementById("maptab").innerHTML = `<tr><th class="wrap">Manga2Animate step</th><th class="wrap">calls / story</th><th class="wrap">in C</th><th class="wrap">what Opus did instead</th></tr>` +
+  MAP.map(r => `<tr><td class="wrap">${r[0]}</td><td class="wrap">${r[1]}</td><td class="wrap"><span class="tag ${r[2]}">${TAG[r[2]]}</span></td><td class="wrap">${r[3]}</td></tr>`).join("");
+
+// main table
+function mainTable(){
+  const ex = document.getElementById("showExact").checked;
+  const rows = Object.keys(S).filter(m => ex || !m.includes("[exact"));
+  const rank = {};
+  COLS.forEach(c => { const v = rows.map(m => S[m][c]).filter(x=>!isNaN(x)).sort((a,b)=>b-a); rank[c] = v; });
+  const cls = m => m.startsWith("C:") ? "cRow" : m.startsWith("B:") ? "bRow" : m===M ? "mRow" : "";
+  document.getElementById("maintab").innerHTML = `<tr><th>Method</th>${COLS.map(c=>`<th>${c} ↑</th>`).join("")}</tr>` +
+    rows.map(m => `<tr class="${cls(m)}"><td>${nice(m)}</td>${COLS.map(c => {
+      const v=S[m][c]; const k = v===rank[c][0]?"best":v===rank[c][1]?"second":"";
+      return `<td class="${k}">${f(v,c)}</td>`}).join("")}</tr>`).join("");
+}
+document.getElementById("showExact").onchange = mainTable; mainTable();
+
+// charts
+function bars(metric, lo, hi){
+  const rows = Object.keys(S).filter(m=>!m.includes("[exact")).sort((a,b)=>S[b][metric]-S[a][metric]);
+  const W=460,rh=22,L=170,H=rows.length*rh+18;
+  const x = v => L + (v-lo)/(hi-lo)*(W-L-46);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${metric}">`;
+  rows.forEach((m,i)=>{
+    const y=i*rh+4, col = m.startsWith("C:")?"#6d28d9":m.startsWith("B:")?"#0e7490":m===M?"#d97706":"#c7c7cc";
+    s += `<text x="${L-6}" y="${y+14}" text-anchor="end" font-size="11" fill="#3a3a3c">${(nice(m).length>27?nice(m).slice(0,26)+"…":nice(m))}</text>`;
+    s += `<rect x="${L}" y="${y+3}" width="${Math.max(1,x(S[m][metric])-L)}" height="${rh-8}" rx="3" fill="${col}"/>`;
+    s += `<text x="${x(S[m][metric])+4}" y="${y+14}" font-size="11" fill="#3a3a3c">${f(S[m][metric],metric)}</text>`;
+  });
+  s += `<text x="${L}" y="${H-2}" font-size="10" fill="#8e8e93">axis from ${lo}</text></svg>`;
+  return s;
+}
+document.getElementById("charts").innerHTML = [["I2VS","Character alignment (I2VS)",0.7,0.81],["I2VB","Panel / background alignment (I2VB)",0.7,0.8],["Shadow-v2","Anime aesthetics (Shadow-v2)",0,0.65],["DD","Motion magnitude (DD), not correctness",0,13]]
+  .map(([m,t,lo,hi])=>`<div class="chart"><h5>${t}</h5>${bars(m,lo,hi)}</div>`).join("");
+
+// per case
+const VID = [["m2a","M2A (Gemini) + Seedance 2.0", M],["minimax","M2A (Gemini) + MiniMax-H3","M2A(Gemini)+MiniMax-H3"],["b","B: M2A plan + Omni", B],["c","C: Opus director + Omni", C]];
+let cur = D.cases[0];
+function showCase(c){
+  cur=c;
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.c===c));
+  const base = `static/media/${c}/`;
+  document.getElementById("credit").textContent = c==="lovehina" ? "· LoveHina vol. 01 © Ken Akamatsu, from Manga109-s" : "· DualJustice © Yusuke Takeyama, from Manga109-s";
+  document.getElementById("pages").innerHTML = D.pages[c].map(p=>`<img src="${base}${p}" alt="manga page">`).join("");
+  document.getElementById("strip").innerHTML = [1,2,3,4,5,6].map(i=>`<figure><img src="${base}panel${i}.jpg" alt="panel ${i}"><figcaption>${i}</figcaption></figure>`).join("");
+  const pv = Object.fromEntries(D.per_video.filter(r=>r.case===c).map(r=>[r.method,r]));
+  document.getElementById("vids").innerHTML = VID.map(([k,t,m])=>`<figure><video src="${base}${k}.mp4" controls muted playsinline preload="metadata"></video><figcaption><b>${t}</b> <span class="s">I2VS ${(+pv[m].I2VS).toFixed(3)} · I2VB ${(+pv[m].I2VB).toFixed(3)} · Shadow ${(+pv[m]["Shadow-v2"]).toFixed(3)}</span></figcaption></figure>`).join("");
+  document.getElementById("casetab").innerHTML = `<tr><th>${c}</th>${COLS.map(x=>`<th>${x}</th>`).join("")}</tr>` +
+    VID.map(([k,t,m])=>`<tr class="${m===C?"cRow":m===B?"bRow":m===M?"mRow":""}"><td>${t}</td>${COLS.map(x=>`<td>${f(+pv[m][x],x)}</td>`).join("")}</tr>`).join("");
+}
+document.getElementById("tabs").innerHTML = D.cases.map(c=>`<button data-c="${c}">${c}</button>`).join("");
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showCase(b.dataset.c));
+showCase(cur);
+document.getElementById("playall").onclick = () => { const v=[...document.querySelectorAll("#vids video")]; v.forEach(x=>{x.currentTime=0}); v.forEach(x=>x.play()); };
+
+// review
+const nImg = Object.values(D.calls).reduce((a,x)=>a+x.image,0), nClip = Object.values(D.calls).reduce((a,x)=>a+x.clip,0);
+document.getElementById("retries").textContent = `${nImg} image calls (24 keyframes, 1 colour sheet and ${nImg-25} keyframe retries) and ${nClip} clip calls (24 shots and ${nClip-24} retries)`;
+document.getElementById("review").innerHTML = D.review.map(r=>`<div class="rev ${r.rej.includes('sheet')||r.caption.includes('clip:')?'sheet':''}"><figure><img src="${r.rej}" alt="rejected"><span class="lab r">rejected</span></figure><figure><img src="${r.acc}" alt="accepted"><span class="lab a">accepted</span></figure></div><div class="cap">${r.caption}</div>`).join("");
+
+// cost
+const cr = D.cases.map(c=>{const [im,cl,op,mn]=D.cost[c]; const v=cl*0.5, i=im*0.067; return [c,im,cl,i,v,op,i+v+op,mn];});
+const avg = k => cr.reduce((a,r)=>a+r[k],0)/cr.length;
+document.getElementById("costtab").innerHTML = `<tr><th>story</th><th>image calls</th><th>clip calls</th><th>images $</th><th>Omni $</th><th>Opus $</th><th>total $</th><th>wall min</th></tr>` +
+  cr.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3].toFixed(2)}</td><td>${r[4].toFixed(2)}</td><td>${r[5].toFixed(2)}</td><td><b>${r[6].toFixed(2)}</b></td><td>${r[7]}</td></tr>`).join("") +
+  `<tr class="cRow"><td>C mean</td><td>${avg(1).toFixed(2)}</td><td>${avg(2).toFixed(2)}</td><td>${avg(3).toFixed(2)}</td><td>${avg(4).toFixed(2)}</td><td>${avg(5).toFixed(2)}</td><td>${avg(6).toFixed(2)}</td><td>${avg(7).toFixed(1)}</td></tr>` +
+  `<tr class="mRow"><td>Manga2Animate (paper)</td><td>6</td><td>2 (Seedance)</td><td colspan="2">Seedance 4.55</td><td>Gemini VLM ≈1.1</td><td><b>5.65</b></td><td>24.8</td></tr>`;
+
+// sanity check
+const sp = D.check.split("\n").filter(l=>/^(I2VS|I2VB|SC|BC|MS|DD|Shadow|Waifu)/.test(l)).map(l=>l.trim().split(/\s+/));
+document.getElementById("checktab").innerHTML = `<tr><th>metric</th>${sp.map(r=>`<th>${r[0]}</th>`).join("")}</tr><tr><td>Spearman ρ (8 methods)</td>${sp.map(r=>`<td>${r[1]}</td>`).join("")}</tr><tr><td>mean |paper − ours|</td>${sp.map(r=>`<td>${r[2]}</td>`).join("")}</tr>`;
+</script>
+</body>
+</html>

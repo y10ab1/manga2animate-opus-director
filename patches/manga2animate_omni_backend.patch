@@ -1,0 +1,76 @@
+diff --git a/src/video_models.py b/src/video_models.py
+index 5c8f427..aec2ad6 100644
+--- a/src/video_models.py
++++ b/src/video_models.py
+@@ -601,6 +601,50 @@ class AnisoraBackend(Backend):
+         return found
+ 
+ 
++# ======================
++# GEMINI OMNI  (i2v, first frame)  -- added by manga2animate-exp
++# ======================
++class OmniBackend(Backend):
++    """Synchronous: submit() generates the clip and returns its local path; poll() returns it."""
++
++    def submit(self, prompt, image, duration, seed=None):
++        import base64, mimetypes, tempfile
++        key = os.getenv("GEMINI_API_KEY")
++        body = {"model": self.model_id,
++                "input": [{"type": "image", "mime_type": mimetypes.guess_type(str(image))[0] or "image/png",
++                           "data": base64.b64encode(Path(image).read_bytes()).decode()},
++                          {"type": "text", "text": prompt + f"\nDuration: about {duration} seconds."}],
++                "response_format": {"type": "video", "aspect_ratio": "16:9", "resolution": "720p", "delivery": "uri"}}
++        last = None
++        for attempt in range(3):
++            try:
++                r = requests.post("https://generativelanguage.googleapis.com/v1beta/interactions", json=body,
++                                  headers={"x-goog-api-key": key}, timeout=900)
++                r.raise_for_status()
++                d = r.json()
++                vids = [c for s in d.get("steps", []) if s.get("type") == "model_output"
++                        for c in s.get("content", []) if c.get("type") == "video"]
++                if not vids:
++                    raise RuntimeError(f"no video: {str(d)[:300]}")
++                v = vids[-1]
++                data = base64.b64decode(v["data"]) if v.get("data") else requests.get(
++                    v["uri"] + ("&" if "?" in v["uri"] else "?") + f"key={key}", timeout=600).content
++                raw = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
++                raw.write(data); raw.close()
++                # Omni picks its own length; trim to the pipeline's per-panel duration
++                out = raw.name[:-4] + "_trim.mp4"
++                subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", raw.name, "-t", str(duration),
++                                "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", out], check=True)
++                return "file://" + out
++            except Exception as e:
++                last = e
++                time.sleep(10)
++        raise RuntimeError(f"omni failed: {last}")
++
++    def poll(self, task_id, interval=15, timeout=1800):
++        return task_id
++
++
+ # ======================
+ # REGISTRY
+ # ======================
+@@ -638,6 +682,11 @@ def build_registry():
+             ref_duration=15, panel_clamp=(4, 15),
+             is_local=True, weights_dirname="MiniMax-H3",
+         ),
++        "omni": OmniBackend(
++            name="omni", mode="i2v",
++            model_id=_env("OMNI_MODEL", "gemini-omni-1.1-flash"),
++            ref_duration=10, panel_clamp=(2, 5), env_keys=("GEMINI_API_KEY",),
++        ),
+         "anisora": AnisoraBackend(
+             name="anisora", mode="i2v",
+             model_id="Index-anisora-V3.2",
+@@ -647,7 +696,7 @@ def build_registry():
+     }
+ 
+ 
+-BACKEND_NAMES = ["wan", "seedance", "minimax-local", "minimax-api", "anisora"]
++BACKEND_NAMES = ["wan", "seedance", "minimax-local", "minimax-api", "anisora", "omni"]
+ 
+ def detect_backend(model_id):
+     """Guess the backend from a generation model id.
